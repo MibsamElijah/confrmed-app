@@ -31,7 +31,7 @@ function parseSlip(raw){
  let date=iso(new Date()),dm=t.match(/\b(\d{1,2})\s+(jan(?:uari)?|feb(?:ruari)?|mrt|maart|mar(?:ch)?|apr(?:il)?|mei|jun(?:i)?|jul(?:i)?|aug(?:ustus)?|sep(?:tember)?|okt(?:ober)?|oct(?:ober)?|nov(?:ember)?|dec(?:ember)?)\s+(20\d{2})\b/i);
  if(dm){let m=monthNames[dm[2].slice(0,3).toLowerCase()];if(m)date=dm[3]+'-'+String(m).padStart(2,'0')+'-'+dm[1].padStart(2,'0')}
  else{let d=t.match(/\b(\d{1,2})[\/-](\d{1,2})[\/-](20\d{2})\b/);if(d)date=d[3]+'-'+d[2].padStart(2,'0')+'-'+d[1].padStart(2,'0')}
- let odd=moneyParse(find(/(?:Noteringen|Totale?\s+(?:odd|odds)|Odds?|Notering)\s*[:：]?\s*([0-9][0-9.,]*)/i));
+ let odd=moneyParse(find(/(?:Noteringen|Totale?\s+(?:odd|odds)|Odds?|Notering|Single\s*@)\s*[:：]?\s*([0-9][0-9.,]*)/i));
  let stake=moneyParse(find(/(?:Inzet|Stake)\s*[:：]?\s*€?\s*([0-9][0-9.,]*)/i));
  let payout=moneyParse(find(/(?:Pot\.?\s*Uitbetaling|Potenti[eë]le?\s*Uitbetaling|Mogelijke\s*Uitbetaling|Potential\s*Payout|Uitbetaling)\s*[:：]?\s*€?\s*([0-9][0-9.,]*)/i));
  let coupon=find(/Coupon[-\s]?(?:Id|ID|Nr|nummer)\s*[:：]?\s*(\d{5,})/i)||'';
@@ -40,20 +40,54 @@ function parseSlip(raw){
  let selections=lines.filter(l=>/(Meer dan|Minder dan|Beide Teams Scoren|Reguliere Speeltijd|Schoten van speler|Doelpunten door|Gelijkspel)/i.test(l)).slice(0,12);
  let pick=selections.length?selections.join(' | '):'';
  let builder=/\b(?:tweevoudig|drievoudig|viervoudig|vijfvoudig|zesvoudig|zevenvoudig|achtvoudig|negenvoudig|tienvoudig|builder|combi|accumulator)\b/i.test(t)||matches.length>1;
- return {date,match,pick,type:builder?'Builder':'Single',odds:odd,stake,payout,coupon,status:'open',raw:t};
+ let status=/\bVerloren\b/i.test(t)?'lost':/\bGewonnen\b/i.test(t)?'won':'open';return {date,match,pick,type:builder?'Builder':'Single',odds:odd,stake,payout,coupon,status,raw:t};
 }
-function showScanData(d){const fields=[['Datum',d.date],['Wedstrijden',d.match||'Niet herkend'],['Selecties',d.pick||'Niet herkend'],['Type',d.type],['Odd',d.odds??'Niet herkend'],['Inzet',d.stake!=null?eur(d.stake):'Niet herkend'],['Potentiële uitbetaling',d.payout!=null?eur(d.payout):'Niet herkend'],['Coupon-ID',d.coupon||'Niet herkend'],['Status','Open (handmatig wijzigen na afloop)']];$('scanfields').innerHTML=fields.map(([a,b])=>'<div><strong>'+escape(a)+':</strong> '+escape(b)+'</div>').join('');$('scanpreview').classList.remove('hidden')}
+
+function splitSlips(raw){
+ const lines=raw.split(/\n/), starts=[];
+ const header=/^\s*(?:(?:Single\s*@?\s*\d)|(?:Enkelvoudig|Tweevoudig|Drievoudig|Viervoudig|Vijfvoudig|Zesvoudig|Zevenvoudig|Achtvoudig|Negenvoudig|Tienvoudig|Combinatie)\b)/i;
+ lines.forEach((l,i)=>{if(header.test(l))starts.push(i)});
+ if(starts.length<2)return [raw];
+ return starts.map((n,i)=>lines.slice(n,starts[i+1]??lines.length).join('\n'));
+}
+function scanInput(label,value,key,i,type='text'){
+ return '<label>'+escape(label)+'</label><input data-scan-index="'+i+'" data-scan-key="'+key+'" type="'+type+'" value="'+escape(value??'')+'">';
+}
+function showScanData(items){
+ $('scanfields').innerHTML=items.map((d,i)=>'<div class="card" style="margin:12px 0;padding:13px;background:#fff"><strong>Bet '+(i+1)+'</strong><div class="muted">'+(d.coupon?'Coupon '+escape(d.coupon):'Coupon-ID niet herkend')+'</div>'+
+ scanInput('Datum',d.date,'date',i,'date')+scanInput('Wedstrijd(en)',d.match,'match',i)+scanInput('Voorspelling',d.pick,'pick',i)+
+ '<label>Type</label><select data-scan-index="'+i+'" data-scan-key="type"><option '+(d.type==='Single'?'selected':'')+'>Single</option><option '+(d.type==='Builder'?'selected':'')+'>Builder</option></select>'+
+ scanInput('Odd',d.odds,'odds',i,'number')+scanInput('Inzet (€)',d.stake,'stake',i,'number')+
+ scanInput('Uitbetaling (€)',d.payout,'payout',i,'number')+
+ '<label>Status</label><select data-scan-index="'+i+'" data-scan-key="status">'+[['open','Open'],['won','Gewonnen'],['lost','Verloren'],['void','Void']].map(([v,t])=>'<option value="'+v+'" '+(d.status===v?'selected':'')+'>'+t+'</option>').join('')+'</select>'+
+ scanInput('Coupon-ID',d.coupon,'coupon',i)+'</div>').join('');
+ $('scanapply').textContent=items.length+' bet'+(items.length===1?'':'s')+' opslaan';
+ $('scanpreview').classList.remove('hidden');
+}
 $('scan').onclick=()=>$('scanfile').click();
 $('scanclose').onclick=()=>$('scandialog').close();
 $('scancancel').onclick=()=>$('scandialog').close();
-$('scanapply').onclick=()=>{let d=scanData;$('scandialog').close();openForm();if(!d)return;$('date').value=d.date;$('match').value=(d.match||'Controleer wedstrijd(en)').slice(0,300);$('pick').value=(d.pick||'Controleer voorspelling').slice(0,300);$('type').value=d.type;$('coupon').value=d.coupon;if(d.odds!=null&&d.odds>=1.01)$('odds').value=d.odds;else $('odds').value='';if(d.stake!=null&&d.stake>0)$('stake').value=d.stake;else $('stake').value='';$('payout').value=d.payout??'';$('status').value='open'};
+$('scanapply').onclick=()=>{
+ if(!Array.isArray(scanData)||!scanData.length)return;
+ let entries=scanData.map(x=>({...x}));
+ $('scanfields').querySelectorAll('[data-scan-key]').forEach(el=>{entries[Number(el.dataset.scanIndex)][el.dataset.scanKey]=el.value});
+ for(const d of entries){
+  d.odds=Number(d.odds);d.stake=Number(d.stake);d.payout=d.payout===''?null:Number(d.payout);
+  if(!/^\d{4}-\d{2}-\d{2}$/.test(d.date)||!d.match.trim()||!d.pick.trim()||!Number.isFinite(d.odds)||d.odds<1.01||!Number.isFinite(d.stake)||d.stake<=0){alert('Controleer de verplichte gegevens van alle bets (datum, wedstrijden, voorspelling, odd en inzet).');return}
+ }
+ const duplicates=entries.filter(d=>d.coupon&&bets.some(b=>b.coupon===d.coupon));
+ if(duplicates.length){alert('Een of meer coupon-ID’s bestaan al. Controleer deze om dubbele registratie te voorkomen.');return}
+ if(!confirm(entries.length+' bet(s) opslaan? Controleer eerst de status en bedragen.'))return;
+ entries.forEach((d,i)=>bets.push({id:String(Date.now())+'-'+i,date:d.date,match:d.match.slice(0,300),pick:d.pick.slice(0,300),type:d.type,odds:d.odds,stake:d.stake,payout:d.payout,coupon:d.coupon,status:d.status}));
+ $('scandialog').close();save();
+};
 $('scanfile').onchange=async e=>{
  let f=e.target.files?.[0];e.target.value='';if(!f)return;
  scanData=null;$('scanpreview').classList.add('hidden');$('scanprogress').textContent='Foto wordt gelezen. Dit kan even duren...';$('scandialog').showModal();
  try{
  if(!window.Tesseract){$('scanprogress').textContent='Tekstherkenning wordt geladen...';await new Promise((resolve,reject)=>{let script=document.createElement('script');script.src='https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js';script.onload=resolve;script.onerror=()=>reject(new Error('Tekstherkenning kon niet worden geladen. Controleer je internetverbinding.'));document.head.appendChild(script)})}
  const res=await Tesseract.recognize(f,'nld+eng',{logger:m=>{if(m.status==='recognizing text')$('scanprogress').textContent='Foto lezen: '+Math.round((m.progress||0)*100)+'%'}});
- scanData=parseSlip(res.data.text);
+ scanData=splitSlips(res.data.text).map(parseSlip);
  $('scanprogress').textContent='Gereed! Controleer alle herkende gegevens.';
  showScanData(scanData);
  }catch(err){$('scanprogress').textContent='Herkennen mislukt: '+err.message+'. Probeer een scherpere screenshot of vul de bet handmatig in.'}
