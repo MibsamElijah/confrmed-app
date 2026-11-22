@@ -242,7 +242,7 @@ $('authSignup').onclick=async()=>{
  if(error){$('authMessage').textContent=error.message;return}
  $('authMessage').textContent=data.session?'Account aangemaakt en ingelogd.':'Account aangevraagd. Controleer je e-mail en klik op de bevestigingslink. Bij een foutieve omleiding moet de beheerder het GitHub Pages-adres instellen als Supabase Auth Redirect URL.'
 };
-$('authLogout').onclick=async()=>{if(!cloudClient)return;const{error}=await cloudClient.auth.signOut();if(error){$('authMessage').textContent=error.message;return}cloudUser=null;updateAuthUi();$('authDialog').close();cloudStatus('Uitgelogd. Gegevens blijven op dit apparaat zichtbaar; gebruik geen gedeeld apparaat.')};
+$('authLogout').onclick=async()=>{if(!cloudClient)return;const{error}=await cloudClient.auth.signOut();if(error){$('authMessage').textContent=error.message;return}cloudUser=null;bets=[];localStorage.removeItem('confrmed-bets');render();updateAuthUi();$('authDialog').close();cloudStatus('Uitgelogd. Je cloudgegevens zijn van dit apparaat verwijderd en blijven online bewaard.')};
 async function startCloud(){
  try{
   const script=document.createElement('script');
@@ -254,7 +254,7 @@ async function startCloud(){
   if(error && !/session missing/i.test(error.message||''))cloudStatus('Accountcontrole: '+error.message);
   cloudUser=data?.user||null;updateAuthUi();
   if(cloudUser)await cloudLoad();
-  cloudClient.auth.onAuthStateChange((event,session)=>{const prev=cloudUser?.id;cloudUser=session?.user||null;updateAuthUi();if(cloudUser && prev!==cloudUser.id)queueMicrotask(()=>cloudLoad())});
+  cloudClient.auth.onAuthStateChange((event,session)=>{const prev=cloudUser?.id;cloudUser=session?.user||null;if(event==='SIGNED_OUT'&&prev){bets=[];localStorage.removeItem('confrmed-bets');render()}updateAuthUi();if(cloudUser && prev!==cloudUser.id)queueMicrotask(()=>cloudLoad())});
  }catch(err){cloudError(err)}
 }
 startCloud();
