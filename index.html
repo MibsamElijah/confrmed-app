@@ -270,7 +270,7 @@ function list(items){
  return items.map(b=>{
   let p=result(b),status={won:'Gewonnen',lost:'Verloren',open:'Open',void:'Void'}[b.status]||b.status, m=matchSummary(b.match);
   let resultLabel=b.status==='open'?'Open':b.status==='void'?'€ 0,00':eur(p);
-  return '<details class="bet-item"><summary class="bet-main"><div class="bet-heading"><strong>'+escape(m.title)+'</strong>'+(m.extra?'<span class="bet-extra">+ '+m.extra+' andere wedstrijd'+(m.extra===1?'':'en')+'</span>':'')+'<span class="bet-date">'+escape(b.date)+' · '+escape(b.type)+'</span></div><div class="bet-side"><span class="pill '+escape(b.status)+'">'+escape(status)+'</span><strong class="bet-money '+(p>0?'positive':p<0?'negative':'')+'">'+resultLabel+'</strong></div><span class="bet-chevron">⌄</span></summary>'+
+  return '<details class="bet-item"><summary class="bet-main"><span class="match-symbol" aria-hidden="true">⚽</span><div class="bet-heading"><strong>'+escape(m.title)+'</strong>'+(m.extra?'<span class="bet-extra">+ '+m.extra+' andere wedstrijd'+(m.extra===1?'':'en')+'</span>':'')+'<span class="bet-date">'+escape(b.date)+' · '+escape(b.type)+'</span></div><span class="odd-chip">'+Number(b.odds).toFixed(2)+'</span><div class="bet-side"><span class="pill '+escape(b.status)+'">'+escape(status)+'</span><strong class="bet-money '+(p>0?'positive':p<0?'negative':'')+'">'+resultLabel+'</strong></div><span class="bet-chevron">⌄</span></summary>'+
   '<div class="bet-details">'+
   (m.extra?'<div class="bet-field"><span>Wedstrijden</span><strong class="bet-value">'+escape(m.all).replace(/\n/g,'<br>')+'</strong></div>':'')+
   '<div class="bet-field"><span>Voorspelling(en)</span><strong class="bet-value">'+escape(b.pick)+'</strong></div>'+
