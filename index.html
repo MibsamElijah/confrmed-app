@@ -240,7 +240,8 @@ body{background:radial-gradient(ellipse 320px 310px at 108% 0%,rgba(55,126,249,.
  <div class="card"><div class="muted">Afgeronde bets</div><div class="metric" id="total">0</div></div>
  <div class="card"><div class="muted">ROI</div><div class="metric" id="roi">0%</div></div>
  <div class="card"><div class="muted">Totale inzet</div><div class="metric" id="staked">€ 0,00</div></div>
- <div class="card"><div class="muted">Startdeposit</div><div class="metric">€ 50,00</div></div>
+ <div class="card"><div class="muted">Totale deposits</div><div class="metric" id="depositsTotal">€ 50,00</div></div>
+ <div class="card"><div class="muted">Geschat beschikbaar saldo</div><div class="metric" id="availableBalance">€ 0,00</div></div>
 </div></details><div class="section"><div class="panel chart-panel"><h2>Winstontwikkeling</h2><svg class="chart" id="chart" viewBox="0 0 500 210" preserveAspectRatio="none"></svg><div class="legend">Cumulatieve netto winst in euro</div></div><div class="panel recent-panel"><div class="recent-title"><h2>Recente bets</h2><button type="button" id="showAllBets">Bekijk alles →</button></div><div id="recent"></div></div></div><div class="panel stats-panel"><h2>Prestatie-inzichten</h2><div id="insights" class="insights"></div></div></section>
 <section id="calendar" class="hidden"><div class="panel"><div class="calhead"><button id="prev">‹</button><strong id="month"></strong><button id="next">›</button></div><div class="cal" id="cal"></div><div id="monthsummary" class="monthsummary"></div></div><div class="panel" style="margin-top:15px"><h2 id="daytitle">Geselecteerde dag</h2><div id="daysummary" class="day-summary"></div><div id="daybets"></div></div></section>
 <section id="bets" class="hidden"><div class="panel"><div class="toolbar"><h2 style="margin:0">Alle bets</h2><select id="filter" style="width:auto"><option value="all">Alles</option><option value="open">Open</option><option value="won">Gewonnen</option><option value="lost">Verloren</option><option value="void">Void</option></select></div><div id="allbets"></div></div></section>
@@ -256,6 +257,23 @@ document.addEventListener('keydown',e=>{if(e.key==='Escape')closeQuickMenu()});
 
 let bets=[];try{let x=JSON.parse(localStorage.getItem('confrmed-bets')||'[]');if(Array.isArray(x))bets=x}catch(e){}
 let view=new Date(),selected=iso(new Date()),tab='dashboard';view.setDate(1);
+const START_DEPOSIT=50;
+let extraDeposits=[];try{const stored=JSON.parse(localStorage.getItem('confrmed-deposits')||'[]');if(Array.isArray(stored))extraDeposits=stored.filter(x=>Number.isFinite(Number(x.amount))&&Number(x.amount)>0)}catch(e){}
+function totalDeposits(){return START_DEPOSIT+extraDeposits.reduce((sum,x)=>sum+Number(x.amount),0)}
+function availableBalance(items=bets){const profit=items.reduce((sum,b)=>sum+result(b),0),reserved=items.filter(b=>b.status==='open').reduce((sum,b)=>sum+Number(b.stake),0);return Math.round((totalDeposits()+profit-reserved)*100)/100}
+function checkDepositFor(newBets,existingIds=[]){
+ const newOpen=newBets.filter(b=>b.status==='open'&&!existingIds.includes(String(b.id)));
+ if(!newOpen.length)return true;
+ const amount=newOpen.reduce((sum,b)=>sum+Number(b.stake),0),available=availableBalance();
+ if(amount<=available+0.001)return true;
+ const missing=Math.ceil((amount-available)*100)/100;
+ const answer=prompt('Nieuwe open inzet: '+eur(amount)+'. Geschat beschikbaar: '+eur(available)+'. Heb je bijgestort? Vul het werkelijke depositbedrag in (€), of 0 als er geen deposit was. Minimaal nodig: '+eur(missing)+'.',String(Math.ceil(Math.max(missing,0)/10)*10));
+ if(answer===null)return false;
+ const deposit=Number(answer.trim().replace(',','.'));
+ if(!Number.isFinite(deposit)||deposit<0){alert('Vul een geldig depositbedrag in.');return false}
+ if(deposit>0){extraDeposits.push({id:String(Date.now()),date:iso(new Date()),amount:Math.round(deposit*100)/100});localStorage.setItem('confrmed-deposits',JSON.stringify(extraDeposits))}
+ return true;
+}
 const result=b=>b.status==='won'?Math.round(((b.payout!=null&&Number.isFinite(Number(b.payout))?Number(b.payout):Number(b.stake)*Number(b.odds))-Number(b.stake))*100)/100:b.status==='lost'?-Number(b.stake):0,save=()=>{localStorage.setItem('confrmed-bets',JSON.stringify(bets));render();cloudSaveAll()},sorted=()=>[...bets].sort((a,b)=>b.date.localeCompare(a.date)||String(b.id).localeCompare(String(a.id)));
 function matchSummary(raw){
  const parts=String(raw||'').split('|').map(x=>x.trim()).filter(Boolean);
@@ -298,6 +316,7 @@ function render(){
  $('winrate').textContent=done.length?Math.round(100*wins/done.length)+'%':'0%';$('total').textContent=done.length;$('avg').textContent=odd?odd.toFixed(2):'—';
  $('roi').textContent=stake?(100*profit/stake).toFixed(1).replace('.',',')+'%':'—';$('roi').className='metric '+(profit>0?'positive':profit<0?'negative':'');
  $('staked').textContent=eur(stake);
+ $('depositsTotal').textContent=eur(totalDeposits());$('availableBalance').textContent=eur(availableBalance());
 
  $('recent').innerHTML=list(sorted().slice(0,4));$('allbets').innerHTML=list(sorted().filter(b=>$('filter').value==='all'||b.status===$('filter').value));
  const day=sorted().filter(b=>b.date===selected),dayDone=day.filter(b=>b.status==='won'||b.status==='lost'),dayProfit=dayDone.reduce((sum,b)=>sum+result(b),0);
@@ -318,7 +337,7 @@ document.querySelectorAll('[data-tab]').forEach(b=>b.onclick=()=>{tab=b.dataset.
 $('prev').onclick=()=>{view.setMonth(view.getMonth()-1);render()};$('next').onclick=()=>{view.setMonth(view.getMonth()+1);render()};$('filter').onchange=render;$('period').onchange=render;
 document.addEventListener('click',e=>{let b=e.target.closest('[data-day],[data-edit],[data-del],[data-ticket]');if(!b)return;if(b.dataset.day){selected=b.dataset.day;render()}if(b.dataset.ticket){openTicket(b.dataset.ticket)}if(b.dataset.edit){let bet=bets.find(x=>String(x.id)===b.dataset.edit);if(bet)openForm(bet)}if(b.dataset.del){if(confirm('Deze bet verwijderen?')){const deletedId=b.dataset.del;bets=bets.filter(x=>String(x.id)!==deletedId);deleteTicket(deletedId);cloudDelete(deletedId);save()}}});
 function openForm(b){$('form').reset();$('formtitle').textContent=b?'Bet wijzigen':'Nieuwe bet';$('id').value=b?.id||'';$('date').value=b?.date||iso(new Date());$('match').value=b?.match||'';$('pick').value=b?.pick||'';$('coupon').value=b?.coupon||'';$('payout').value=b?.payout??'';$('type').value=b?.type||'Single';$('odds').value=b?.odds||2;$('stake').value=b?.stake||10;$('status').value=b?.status||'open';$('dialog').showModal()}
-$('new').onclick=()=>{closeQuickMenu();openForm()};$('cancel').onclick=()=>$('dialog').close();$('form').onsubmit=e=>{e.preventDefault();let id=$('id').value||String(Date.now()),bet={id,date:$('date').value,match:$('match').value.trim(),pick:$('pick').value.trim(),type:$('type').value,odds:Number($('odds').value),stake:Number($('stake').value),coupon:$('coupon').value.trim(),payout:$('payout').value===''?null:Number($('payout').value),status:$('status').value};if(!bet.match||!bet.pick||!Number.isFinite(bet.odds)||bet.odds<1.01||!Number.isFinite(bet.stake)||bet.stake<=0)return;let index=bets.findIndex(x=>String(x.id)===id);if(index<0)bets.push(bet);else bets[index]=bet;$('dialog').close();save()};
+$('new').onclick=()=>{closeQuickMenu();openForm()};$('cancel').onclick=()=>$('dialog').close();$('form').onsubmit=e=>{e.preventDefault();let id=$('id').value||String(Date.now()),bet={id,date:$('date').value,match:$('match').value.trim(),pick:$('pick').value.trim(),type:$('type').value,odds:Number($('odds').value),stake:Number($('stake').value),coupon:$('coupon').value.trim(),payout:$('payout').value===''?null:Number($('payout').value),status:$('status').value};if(!bet.match||!bet.pick||!Number.isFinite(bet.odds)||bet.odds<1.01||!Number.isFinite(bet.stake)||bet.stake<=0)return;let index=bets.findIndex(x=>String(x.id)===id);if(index<0){if(!checkDepositFor([bet]))return;bets.push(bet)}else bets[index]=bet;$('dialog').close();save()};
 $('export').onclick=()=>{let blob=new Blob([JSON.stringify(bets,null,2)],{type:'application/json'}),url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download='confrmed-backup-'+iso(new Date())+'.json';a.click();setTimeout(()=>URL.revokeObjectURL(url),1000)};$('import').onclick=()=>$('file').click();$('file').onchange=async e=>{let f=e.target.files[0];if(!f)return;try{let x=JSON.parse(await f.text());if(!Array.isArray(x)||!x.every(b=>b&&typeof b.date==='string'&&typeof b.match==='string'&&typeof b.pick==='string'&&['open','won','lost','void'].includes(b.status)&&Number.isFinite(Number(b.odds))&&Number.isFinite(Number(b.stake))))throw Error('Ongeldige backup');if(confirm('Huidige bets vervangen door de backup?')){bets=x;save()}}catch(err){alert('Import mislukt: '+err.message)}e.target.value=''};
 
 /* Ticket-afbeeldingen blijven uitsluitend op dit apparaat in IndexedDB */
@@ -383,6 +402,7 @@ $('scanapply').onclick=()=>{
  const ids=entries.map(d=>d.coupon).filter(Boolean);const duplicates=entries.filter(d=>d.coupon&&(bets.some(b=>b.coupon===d.coupon)||ids.filter(x=>x===d.coupon).length>1));
  if(duplicates.length){alert('Een of meer coupon-ID’s bestaan al. Controleer deze om dubbele registratie te voorkomen.');return}
  if(!confirm(entries.length+' bet(s) opslaan? Controleer eerst de status en bedragen.'))return;
+ if(!checkDepositFor(entries))return;
  entries.forEach((d,i)=>{let id=String(Date.now())+'-'+i;bets.push({id,date:d.date,match:d.match.slice(0,300),pick:d.pick.slice(0,300),type:d.type,odds:d.odds,stake:d.stake,payout:d.payout,coupon:d.coupon,status:d.status});if(d.scanFile)storeTicket(id,d.scanFile).catch(()=>{});});
  $('scandialog').close();save();
 };
