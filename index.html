@@ -214,6 +214,12 @@ body{background:radial-gradient(ellipse 320px 310px at 108% 0%,rgba(55,126,249,.
 .bet-money{font-size:11px}
 }
 @media(max-width:365px){.bet-main{grid-template-columns:29px minmax(0,1fr) auto 10px}.odd-chip{display:none}.match-symbol{width:28px;height:28px}}
+
+/* Rendementsbadge onder netto winst */
+.primary-profit .metric,.primary-profit .metric.positive,.primary-profit .metric.negative{color:#fff}
+.profit-change{display:inline-flex;align-items:center;gap:5px;border-radius:999px;padding:5px 11px;margin-top:12px;font-size:13px;line-height:1.2;font-weight:750;letter-spacing:.1px}
+.profit-change.up{background:rgba(28,159,103,.22);color:#43e3a0}
+.profit-change.down{background:rgba(225,72,91,.24);color:#ff969f}
 </style></head><body><div class="shell">
 <header class="top"><div class="logo" aria-label="CONFRMED"><img alt="CONFRMED logo" src="data:image/png;base64,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"></div><nav class="tabs"><button data-tab="dashboard" class="active">Dashboard</button><button data-tab="calendar">Kalender</button><button data-tab="bets">Bets</button></nav></header>
 <div class="quick-actions" id="quickActions">
@@ -225,7 +231,7 @@ body{background:radial-gradient(ellipse 320px 310px at 108% 0%,rgba(55,126,249,.
 </div>
 <section id="dashboard"><div class="dashboard-tools"><span class="muted">OVERZICHT</span><select id="period" aria-label="Periode"><option value="all">Alle resultaten</option><option value="month">Deze maand</option></select></div>
 <div class="primary-kpis">
- <div class="card primary-profit"><div class="muted">Netto winst</div><div class="metric" id="profit">€ 0,00</div></div>
+ <div class="card primary-profit"><div class="muted">Netto winst</div><div class="metric" id="profit">€ 0,00</div><div class="profit-change hidden" id="profitChange" aria-label="Rendement op totale inzet"></div></div>
  <div class="card mini-stat"><div class="stat-top"><span class="stat-icon target-icon" aria-hidden="true">◎</span><div class="muted">Winpercentage</div></div><div class="metric" id="winrate">0%</div></div>
  <div class="card mini-stat"><div class="stat-top"><span class="stat-icon odds-icon" aria-hidden="true">◇</span><div class="muted">Gem. odd</div></div><div class="metric" id="avg">—</div></div>
 </div>
@@ -287,7 +293,7 @@ function relevantDone(){
 function roiOf(items){let stake=items.reduce((v,b)=>v+Number(b.stake),0);return stake?100*items.reduce((v,b)=>v+result(b),0)/stake:null}
 function render(){
  let done=relevantDone(),wins=done.filter(b=>b.status==='won').length,profit=done.reduce((sum,b)=>sum+result(b),0),odd=done.length?done.reduce((sum,b)=>sum+Number(b.odds),0)/done.length:0,stake=done.reduce((sum,b)=>sum+Number(b.stake),0);
- $('profit').textContent=eur(profit);$('profit').className='metric '+(profit>0?'positive':profit<0?'negative':'');
+ $('profit').textContent=eur(profit);$('profit').className='metric';const profitPct=stake?100*profit/stake:0,profitBadge=$('profitChange');profitBadge.className='profit-change '+(profitPct>0?'up':profitPct<0?'down':'hidden');profitBadge.textContent=(profitPct>0?'↑ +':'↓ ')+profitPct.toFixed(1).replace('.',',')+'%';profitBadge.title='ROI: netto winst gedeeld door totale inzet';
  $('winrate').textContent=done.length?Math.round(100*wins/done.length)+'%':'0%';$('total').textContent=done.length;$('avg').textContent=odd?odd.toFixed(2):'—';
  $('roi').textContent=stake?(100*profit/stake).toFixed(1).replace('.',',')+'%':'—';$('roi').className='metric '+(profit>0?'positive':profit<0?'negative':'');
  $('staked').textContent=eur(stake);
